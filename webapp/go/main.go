@@ -824,8 +824,8 @@ func searchEstates(c echo.Context) error {
 	res.Count = int64(len(ids))
 
 	estates := []Estate{}
-	params = append(params, perPage, page*perPage)
-	err = db.Select(&estates, searchQuery+limitOffset, params...)
+	err = db.Select(&estates, searchQuery+limitOffset, perPage, page*perPage)
+	c.Logger().Infof("Estimate Query : %v", searchQuery+limitOffset)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
