@@ -56,3 +56,4 @@ CREATE INDEX estate_rent ON isuumo.estate(rent);
 CREATE INDEX estate_door_height_door_width ON isuumo.estate(door_height, door_width);
 CREATE INDEX estate_door_width_rent ON isuumo.estate(door_width, rent);
 CREATE INDEX estate_door_door_height_door_width_rent ON isuumo.estate(door_height, door_width, rent);
+CREATE INDEX estate_id_pupularity ON isuumo.estate(id ASC, popularity DESC);
