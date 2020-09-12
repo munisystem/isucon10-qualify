@@ -8,10 +8,23 @@ GO111MODULE=on GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix ne
 # TODO: deploy to all
 for n in `seq 1`
 do
+	# stop server
 	ssh isucon-server-${n} "sudo systemctl stop isuumo.go.service"
 	ssh isucon-server-${n} "sudo systemctl stop nginx"
+
+	# update content
+	ssh isucon-server-${n} "git -C /home/isucon/isuumo status"
+	ssh isucon-server-${n} "git -C /home/isucon/isuumo clean --force"
+	ssh isucon-server-${n} "git -C /home/isucon/isuumo checkout ."
+	ssh isucon-server-${n} "git -C /home/isucon/isuumo checkout master"
+	ssh isucon-server-${n} "git -C /home/isucon/isuumo pull origin master"
+
+	# deploy
 	scp isuumo isucon-server-${n}:/home/isucon/isuumo/webapp/go/isuumo
+
+	# TODO: logrotate
+
+	# start server
 	ssh isucon-server-${n} "sudo systemctl start isuumo.go.service"
-	# ssh isucon-server-${n} ":> /home/isucon/isutrain/webapp/go/script/logrotate; true"
 	ssh isucon-server-${n} "sudo systemctl start nginx"
 done
