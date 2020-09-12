@@ -81,14 +81,14 @@ func EnsureRanking(table string, order string) (string, error) {
 	return key, nil
 }
 
-func Get(table string, keys []string, perPage int, page int) ([]string, error) {
+func Get(table string, keys []string, perPage int, page int) ([]string, int64, error) {
 	conn := redigoPool.Get()
 	defer conn.Close()
 
 	key := intersectionKey(table, keys)
 	exist, err := redis.Bool(conn.Do("EXISTS", key))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if !exist {
@@ -99,16 +99,21 @@ func Get(table string, keys []string, perPage int, page int) ([]string, error) {
 		}
 		_, err := conn.Do("ZINTERSTORE", args...)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
 	ids, err := redis.Strings(conn.Do("ZRANGE", key, page*perPage, (page+1)*perPage-1))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return ids, nil
+	cnt, err := redis.Int64(conn.Do("ZCOUNT", key, "-inf", "+inf"))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return ids, cnt, nil
 }
 
 func redisKey(table string, condition string, param interface{}) string {

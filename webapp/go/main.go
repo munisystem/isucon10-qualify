@@ -860,7 +860,7 @@ func searchEstates(c echo.Context) error {
 	}
 	keys = append(keys, key)
 
-	ids, err := Get(EstateTable, keys, perPage, page)
+	ids, count, err := Get(EstateTable, keys, perPage, page)
 	if err != nil {
 		c.Logger().Errorf("failed to get: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -873,7 +873,7 @@ func searchEstates(c echo.Context) error {
 	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
 
 	var res EstateSearchResponse
-	res.Count = int64(len(ids))
+	res.Count = count
 
 	estates := []Estate{}
 	err = db.Select(&estates, searchQuery+limitOffset, perPage, page*perPage)
