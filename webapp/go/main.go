@@ -321,6 +321,7 @@ func getChairDetail(c echo.Context) error {
 	}
 
 	chair := Chair{}
+	// TODO: SELECT * FROM chair WHERE id = ? and stock > 0 のほうが早いかも?
 	query := `SELECT * FROM chair WHERE id = ?`
 	err = db.Get(&chair, query, id)
 	if err != nil {
@@ -356,6 +357,7 @@ func postChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	// TODO: transaction がいらないかも、また csv の parse の処理が重そう
 	tx, err := db.Begin()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
@@ -399,6 +401,7 @@ func searchChairs(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("priceRangeId") != "" {
+		// TODO: もし chair の pricing が変動しないのであれば、pricing range id を先に chair の column に入れてしまうと早くなるかも
 		chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
 		if err != nil {
 			c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
@@ -415,6 +418,7 @@ func searchChairs(c echo.Context) error {
 		}
 	}
 
+	// TODO: もし chair の height と width が変動しないのであれば、height, width id を先に chair の column に入れてしまうと早くなるかも
 	if c.QueryParam("heightRangeId") != "" {
 		chairHeight, err := getRange(chairSearchCondition.Height, c.QueryParam("heightRangeId"))
 		if err != nil {
@@ -432,6 +436,7 @@ func searchChairs(c echo.Context) error {
 		}
 	}
 
+	// TODO: もし chair の height と width が変動しないのであれば、height, width id を先に chair の column に入れてしまうと早くなるかも
 	if c.QueryParam("widthRangeId") != "" {
 		chairWidth, err := getRange(chairSearchCondition.Width, c.QueryParam("widthRangeId"))
 		if err != nil {
@@ -449,6 +454,7 @@ func searchChairs(c echo.Context) error {
 		}
 	}
 
+	// TODO: もし chair の depth が変動しないのであれば、depth id を先に chair の column に入れてしまうと早くなるかも
 	if c.QueryParam("depthRangeId") != "" {
 		chairDepth, err := getRange(chairSearchCondition.Depth, c.QueryParam("depthRangeId"))
 		if err != nil {
@@ -476,6 +482,7 @@ func searchChairs(c echo.Context) error {
 		params = append(params, c.QueryParam("color"))
 	}
 
+	// TODO: feature の検索条件が文字列結合による LIKE になっているが、改良することでもう少し早くできるかも
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
 			conditions = append(conditions, "features LIKE CONCAT('%', ?, '%')")
@@ -483,6 +490,7 @@ func searchChairs(c echo.Context) error {
 		}
 	}
 
+	// TODO: conditions の check を最初にやったら go の処理は軽くなるかも
 	if len(conditions) == 0 {
 		c.Echo().Logger.Infof("Search condition not found")
 		return c.NoContent(http.StatusBadRequest)
@@ -502,9 +510,12 @@ func searchChairs(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
+	// TODO: JOIN 等による最適化の余地あり
 	searchQuery := "SELECT * FROM chair WHERE "
 	countQuery := "SELECT COUNT(*) FROM chair WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
+	// MEMO: popurarity の順番で表示
+	// TODO: popurarity に index がはられているか、また有効になっているかは確認する
 	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
 
 	var res ChairSearchResponse
@@ -537,6 +548,7 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	// MEMO: SQL に使われていないが、処理内容てきに放置していいかも
 	_, ok := m["email"].(string)
 	if !ok {
 		c.Echo().Logger.Info("post buy chair failed : email not found in request body")
@@ -557,6 +569,7 @@ func buyChair(c echo.Context) error {
 	defer tx.Rollback()
 
 	var chair Chair
+	// TODO: もしかしたら SELECT から UPDATE じゃなくて、1クエリで表現できるかも
 	err = tx.QueryRowx("SELECT * FROM chair WHERE id = ? AND stock > 0 FOR UPDATE", id).StructScan(&chair)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -588,6 +601,7 @@ func getChairSearchCondition(c echo.Context) error {
 
 func getLowPricedChair(c echo.Context) error {
 	var chairs []Chair
+	// TODO: stock と price の複合 index がはられているのかを確認する
 	query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
 	err := db.Select(&chairs, query, Limit)
 	if err != nil {
@@ -599,6 +613,7 @@ func getLowPricedChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	// TODO: 返却するデータは一部 (i.e. name, description, price) のみにしてしまってもいいかも
 	return c.JSON(http.StatusOK, ChairListResponse{Chairs: chairs})
 }
 
@@ -610,6 +625,7 @@ func getEstateDetail(c echo.Context) error {
 	}
 
 	var estate Estate
+	// TODO: 全部 cache に乗せてしまってもいいかも、ただし popurarity がアップデートされるのであれば考える必要あり
 	err = db.Get(&estate, "SELECT * FROM estate WHERE id = ?", id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -837,6 +853,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	w := chair.Width
 	h := chair.Height
 	d := chair.Depth
+	// TODO: 最適化が絶対あるので後で考える
 	query = `SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT ?`
 	err = db.Select(&estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
 	if err != nil {
@@ -864,6 +881,7 @@ func searchEstateNazotte(c echo.Context) error {
 
 	b := coordinates.getBoundingBox()
 	estatesInBoundingBox := []Estate{}
+	// TODO: id, longitude, latitude のみで良さそう
 	query := `SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
 	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
@@ -879,6 +897,8 @@ func searchEstateNazotte(c echo.Context) error {
 		validatedEstate := Estate{}
 
 		point := fmt.Sprintf("'POINT(%f %f)'", estate.Latitude, estate.Longitude)
+		// TODO: N+1 が発生している
+		// TODO: bounding box から絞っているが、もしかしたら 1 クエリで実現できるかも、ただし事前の絞り込みによって負荷を軽減している可能性があるため、留意する
 		query := fmt.Sprintf(`SELECT * FROM estate WHERE id = ? AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))`, coordinates.coordinatesToText(), point)
 		err = db.Get(&validatedEstate, query, estate.ID)
 		if err != nil {
@@ -895,6 +915,7 @@ func searchEstateNazotte(c echo.Context) error {
 
 	var re EstateSearchResponse
 	re.Estates = []Estate{}
+	// TODO: 該当する estate をすべて出したあとに NazotteeLimit で制限しているが、最初から  NatotteeLimit を参照すればいいかも
 	if len(estatesInPolygon) > NazotteLimit {
 		re.Estates = estatesInPolygon[:NazotteLimit]
 	} else {
@@ -925,6 +946,8 @@ func postEstateRequestDocument(c echo.Context) error {
 	}
 
 	estate := Estate{}
+	// TODO: 存在確認だけなので、estate そのものを cache したら DB に問い合わせは必要なさそう
+	// TODO: select * も必要なさそう
 	query := `SELECT * FROM estate WHERE id = ?`
 	err = db.Get(&estate, query, id)
 	if err != nil {
