@@ -246,7 +246,7 @@ func init() {
 		MaxActive:   0,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", "localhost:6379")
+			return redis.Dial("tcp", "isucon-server-3:6379")
 		},
 	}
 }
