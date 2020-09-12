@@ -12,8 +12,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -222,6 +224,8 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	return sqlx.Open("mysql", dsn)
 }
 
+var redigoPool *redis.Pool
+
 func init() {
 	jsonText, err := ioutil.ReadFile("../fixture/chair_condition.json")
 	if err != nil {
@@ -236,6 +240,15 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(jsonText, &estateSearchCondition)
+
+	redigoPool = &redis.Pool{
+		MaxIdle:     100,
+		MaxActive:   0,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", "localhost:6379")
+		},
+	}
 }
 
 func main() {
@@ -306,6 +319,32 @@ func initialize(c echo.Context) error {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+	err := Invalidate("estate")
+	if err != nil {
+		c.Logger().Errorf("Failed to  invalidate estate : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	_, err = EnsureRanking("estate", "ORDER BY popularity DESC, id ASC")
+	if err != nil {
+		c.Logger().Errorf("Failed to ensure ranking estate : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	if err != nil {
+		c.Logger().Errorf("Failed to  invalidate estate : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	err = Invalidate("chair")
+	if err != nil {
+		c.Logger().Errorf("Failed to  invalidate chair : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	_, err = EnsureRanking("chair", "ORDER BY popularity DESC, id ASC")
+	if err != nil {
+		c.Logger().Errorf("Failed to ensure ranking chair : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.JSON(http.StatusOK, InitializeResponse{
@@ -388,6 +427,11 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to insert chair: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+	err = Invalidate("chair")
+	if err != nil {
+		c.Logger().Errorf("failed to invalidate chair: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
@@ -706,6 +750,11 @@ func postEstate(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
+	err = Invalidate("estate")
+	if err != nil {
+		c.Logger().Errorf("failed to invalidate estate: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -792,21 +841,43 @@ func searchEstates(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	searchQuery := "SELECT * FROM estate WHERE "
-	countQuery := "SELECT COUNT(*) FROM estate WHERE "
-	searchCondition := strings.Join(conditions, " AND ")
-	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
+	EstateTable := "estate"
+	keys := make([]string, len(conditions))
+	for i, condition := range conditions {
+		key, err := Ensure(EstateTable, condition, params[i])
+		if err != nil {
+			c.Logger().Errorf("failed to ensure: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 
-	var res EstateSearchResponse
-	err = db.Get(&res.Count, countQuery+searchCondition, params...)
+		keys[i] = key
+	}
+
+	key, err := EnsureRanking("estate", "ORDER BY popularity DESC, id ASC")
 	if err != nil {
-		c.Logger().Errorf("searchEstates DB execution error : %v", err)
+		c.Logger().Errorf("failed to ensure: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	keys = append(keys, key)
+
+	ids, count, err := Get(EstateTable, keys, perPage, page)
+	if err != nil {
+		c.Logger().Errorf("failed to get: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	if len(ids) == 0 {
+		return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
+	}
+	searchQuery := fmt.Sprintf("SELECT * FROM estate WHERE id IN(%s)", strings.Join(ids, ", "))
+	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
+
+	var res EstateSearchResponse
+	res.Count = count
+
 	estates := []Estate{}
-	params = append(params, perPage, page*perPage)
-	err = db.Select(&estates, searchQuery+searchCondition+limitOffset, params...)
+	err = db.Select(&estates, searchQuery+limitOffset, perPage, page*perPage)
+	c.Logger().Infof("Estimate Query : %v", searchQuery+limitOffset)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
