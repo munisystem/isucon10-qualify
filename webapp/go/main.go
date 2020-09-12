@@ -242,7 +242,7 @@ func init() {
 	json.Unmarshal(jsonText, &estateSearchCondition)
 
 	redigoPool = &redis.Pool{
-		MaxIdle:     3,
+		MaxIdle:     100,
 		MaxActive:   0,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
