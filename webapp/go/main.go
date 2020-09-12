@@ -911,16 +911,16 @@ func searchEstateNazotte(c echo.Context) error {
 		} else {
 			estatesInPolygon = append(estatesInPolygon, validatedEstate)
 		}
+
+		if len(estatesInPolygon) >= NazotteLimit {
+			break
+		}
 	}
 
 	var re EstateSearchResponse
 	re.Estates = []Estate{}
 	// TODO: 該当する estate をすべて出したあとに NazotteeLimit で制限しているが、最初から  NatotteeLimit を参照すればいいかも
-	if len(estatesInPolygon) > NazotteLimit {
-		re.Estates = estatesInPolygon[:NazotteLimit]
-	} else {
-		re.Estates = estatesInPolygon
-	}
+	re.Estates = estatesInPolygon
 	re.Count = int64(len(re.Estates))
 
 	return c.JSON(http.StatusOK, re)
