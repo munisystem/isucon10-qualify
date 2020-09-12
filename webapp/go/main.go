@@ -837,6 +837,9 @@ func searchEstates(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	if len(ids) == 0 {
+		return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
+	}
 	searchQuery := fmt.Sprintf("SELECT * FROM estate WHERE id IN(%s)", strings.Join(ids, ", "))
 	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
 
