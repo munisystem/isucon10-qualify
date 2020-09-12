@@ -496,7 +496,7 @@ func searchChairs(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	conditions = append(conditions, "stock > 0")
+	// conditions = append(conditions, "stock > 0")
 
 	page, err := strconv.Atoi(c.QueryParam("page"))
 	if err != nil {
@@ -570,7 +570,7 @@ func buyChair(c echo.Context) error {
 
 	var chair Chair
 	// TODO: もしかしたら SELECT から UPDATE じゃなくて、1クエリで表現できるかも
-	err = tx.QueryRowx("SELECT * FROM chair WHERE id = ? AND stock > 0 FOR UPDATE", id).StructScan(&chair)
+	err = tx.QueryRowx("SELECT * FROM chair WHERE id = ? FOR UPDATE", id).StructScan(&chair)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
@@ -580,7 +580,12 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	_, err = tx.Exec("UPDATE chair SET stock = stock - 1 WHERE id = ?", id)
+	if chair.Stock == 1 {
+		_, err = tx.Exec("DELETE FROM chair WHERE id = ?", id)
+	} else {
+		_, err = tx.Exec("UPDATE chair SET stock = stock - 1 WHERE id = ?", id)
+	}
+
 	if err != nil {
 		c.Echo().Logger.Errorf("chair stock update failed : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -602,7 +607,8 @@ func getChairSearchCondition(c echo.Context) error {
 func getLowPricedChair(c echo.Context) error {
 	var chairs []Chair
 	// TODO: stock と price の複合 index がはられているのかを確認する
-	query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
+	// query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
+	query := `SELECT * FROM chair ORDER BY price ASC, id ASC LIMIT ?`
 	err := db.Select(&chairs, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
