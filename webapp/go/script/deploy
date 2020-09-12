@@ -4,27 +4,27 @@ set -eux
 
 GO111MODULE=on GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo -o isuumo
 
-# for n in `seq 3`
-# TODO: deploy to all
-for n in `seq 1`
-do
-	# stop server
-	ssh isucon-server-${n} "sudo systemctl stop isuumo.go.service"
-	ssh isucon-server-${n} "sudo systemctl stop nginx"
+n=2
+# stop server
+ssh isucon-server-${n} "sudo systemctl stop isuumo.go.service"
+ssh isucon-server-${n} "sudo systemctl stop nginx"
+ssh isucon-server-${n} "sudo systemctl stop mysql"
 
-	# update content
-	ssh isucon-server-${n} "git -C /home/isucon/isuumo status"
-	ssh isucon-server-${n} "git -C /home/isucon/isuumo clean --force"
-	ssh isucon-server-${n} "git -C /home/isucon/isuumo checkout ."
-	ssh isucon-server-${n} "git -C /home/isucon/isuumo checkout master"
-	ssh isucon-server-${n} "git -C /home/isucon/isuumo pull origin master"
+# update content
+ssh isucon-server-${n} "git -C /home/isucon/isuumo status"
+ssh isucon-server-${n} "git -C /home/isucon/isuumo clean --force"
+ssh isucon-server-${n} "git -C /home/isucon/isuumo checkout ."
+ssh isucon-server-${n} "git -C /home/isucon/isuumo checkout master"
+ssh isucon-server-${n} "git -C /home/isucon/isuumo pull origin master"
 
-	# deploy
-	scp isuumo isucon-server-${n}:/home/isucon/isuumo/webapp/go/isuumo
+# deploy
+scp isuumo isucon-server-${n}:/home/isucon/isuumo/webapp/go/isuumo
 
-	# TODO: logrotate
+# TODO: logrotate
+ssh isucon-server-${n} "sudo rm /var/log/mysql/mysql-slow.log"
+ssh isucon-server-${n} "sudo rm /var/log/nginx/access.log"
 
-	# start server
-	ssh isucon-server-${n} "sudo systemctl start isuumo.go.service"
-	ssh isucon-server-${n} "sudo systemctl start nginx"
-done
+# start server
+ssh isucon-server-${n} "sudo systemctl start isuumo.go.service"
+ssh isucon-server-${n} "sudo systemctl start nginx"
+ssh isucon-server-${n} "sudo systemctl start mysql"
