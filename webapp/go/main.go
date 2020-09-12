@@ -402,6 +402,11 @@ func postChair(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
+	err = Invalidate("chair")
+	if err != nil {
+		c.Logger().Errorf("failed to invalidate chair: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -712,6 +717,11 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to insert estate: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+	err = Invalidate("estate")
+	if err != nil {
+		c.Logger().Errorf("failed to invalidate estate: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)

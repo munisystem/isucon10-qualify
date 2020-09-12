@@ -81,3 +81,14 @@ func redisKey(table string, condition string, param interface{}) string {
 func intersectionKey(table string, keys []string) string {
 	return fmt.Sprintf("%s:%s:intersection:%s", InvalidatablePrefix, table, strings.Join(keys, ":"))
 }
+
+func Invalidate(table string) error {
+	conn := redigoPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do(fmt.Sprintf(`EVAL "return redis.call('del', unpack(redis.call('keys', ARGV[1])))" 0 %s:%s*]`, InvalidatablePrefix, table))
+	if err != nil {
+		return err
+	}
+	return nil
+}
