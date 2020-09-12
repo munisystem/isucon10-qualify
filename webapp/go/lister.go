@@ -93,6 +93,7 @@ func Get(table string, keys []string, perPage int, page int) ([]string, error) {
 
 	if !exist {
 		args := []interface{}{key}
+		args = append(args, len(keys))
 		for _, k := range keys {
 			args = append(args, k)
 		}
