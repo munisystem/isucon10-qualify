@@ -10,6 +10,7 @@ for n in `seq 1`
 do
 	ssh isucon-server-${n} "sudo systemctl stop isuumo.go.service"
 	ssh isucon-server-${n} "sudo systemctl stop nginx"
+	scp ../../nginx/* -R isucon-server-${n}:/home/isucon/isuumo/webapp/nginx
 	scp isuumo isucon-server-${n}:/home/isucon/isuumo/webapp/go/isuumo
 	ssh isucon-server-${n} "sudo systemctl start isuumo.go.service"
 	# ssh isucon-server-${n} ":> /home/isucon/isutrain/webapp/go/script/logrotate; true"
