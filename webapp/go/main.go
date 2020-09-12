@@ -881,7 +881,7 @@ func searchEstateNazotte(c echo.Context) error {
 
 	estates := []Estate{}
 	b := coordinates.getBoundingBox()
-	pointQuery := `ST_GeomFromText(concat("point(", cast(longitude as char), " " ,cast(latitude as char),")"))`
+	pointQuery := `ST_GeomFromText(concat("point(", format(longitude, 6), " ", cast(latitude, 6),")"))`
 	polygonQuery := fmt.Sprintf(`ST_PolygonFromText(%s)`, coordinates.coordinatesToText())
 	bondaryQuery := fmt.Sprintf("latitude <= %v AND latitude >= %v AND longitude <= %v AND longitude >= %v", b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 
