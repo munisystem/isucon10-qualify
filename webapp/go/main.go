@@ -881,8 +881,7 @@ func searchEstateNazotte(c echo.Context) error {
 
 	b := coordinates.getBoundingBox()
 	estatesInBoundingBox := []Estate{}
-	// TODO: id, longitude, latitude のみで良さそう
-	query := `SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
+	query := `SELECT id, longitude, latitude FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
 	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
 		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
@@ -891,6 +890,11 @@ func searchEstateNazotte(c echo.Context) error {
 		c.Echo().Logger.Errorf("database execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+
+	pointQuery := `ST_GeomFromText(concat("point(", cast(longitude as char), " " ,cast(latitude as char),")"))`
+	polygonQuery := fmt.Sprintf(`ST_PolygonFromText(%s)`, coordinates.coordinatesToText())
+
+	query := fmt.Sprintf(`select * from estate where ST_Contains(%s, %s)`, polygonQuery, pointQuery)
 
 	estatesInPolygon := []Estate{}
 	for _, estate := range estatesInBoundingBox {
