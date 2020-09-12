@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for n in `seq 3`
+do
+	ssh isucon-server-${n} "sudo cp /var/log/nginx/access.log /home/isucon; sudo chown isucon:isucon /home/isucon/access.log"
+	scp isucon-server-${n}:/home/isucon/access.log ./log/access-isucon-server-${n}.log
+done
