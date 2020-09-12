@@ -60,7 +60,6 @@ func Get(table string, keys []string) ([]string, error) {
 		for _, k := range keys {
 			args = append(args, k)
 		}
-		args = append(args, args...)
 		_, err := conn.Do("SINTERSTORE", args...)
 		if err != nil {
 			return nil, err
