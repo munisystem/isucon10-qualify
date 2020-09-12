@@ -320,6 +320,16 @@ func initialize(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
+	err := Invalidate("estate")
+	if err != nil {
+		c.Logger().Errorf("Failed to  invalidate estate : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	err = Invalidate("chair")
+	if err != nil {
+		c.Logger().Errorf("Failed to  invalidate chair : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
