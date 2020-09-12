@@ -12,8 +12,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -222,6 +224,8 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	return sqlx.Open("mysql", dsn)
 }
 
+var redigoPool *redis.Pool
+
 func init() {
 	jsonText, err := ioutil.ReadFile("../fixture/chair_condition.json")
 	if err != nil {
@@ -236,6 +240,15 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(jsonText, &estateSearchCondition)
+
+	redigoPool = &redis.Pool{
+		MaxIdle:     3,
+		MaxActive:   0,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", "localhost:6379")
+		},
+	}
 }
 
 func main() {
