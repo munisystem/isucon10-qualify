@@ -56,21 +56,3 @@ CREATE INDEX estate_rent ON isuumo.estate(rent);
 CREATE INDEX estate_door_height_door_width ON isuumo.estate(door_height, door_width);
 CREATE INDEX estate_door_width_rent ON isuumo.estate(door_width, rent);
 CREATE INDEX estate_door_door_height_door_width_rent ON isuumo.estate(door_height, door_width, rent);
-
-CREATE INDEX chair_price_height ON isuumo.chair(price, height);
-CREATE INDEX chair_price_height_width ON isuumo.chair(price, height, width);
-CREATE INDEX chair_price_height_width_depth ON isuumo.chair(price, height, width, depth);
-CREATE INDEX chair_price_height_width_depth_kind ON isuumo.chair(price, height, width, depth, kind);
-CREATE INDEX chair_price_height_width_depth_kind_color ON isuumo.chair(price, height, width, depth, kind, color);
-
-CREATE INDEX chair_height_width ON isuumo.chair(height, width);
-CREATE INDEX chair_height_width_depth ON isuumo.chair(height, width, depth);
-CREATE INDEX chair_height_width_depth_kind ON isuumo.chair(height, width, depth, kind);
-CREATE INDEX chair_height_width_depth_kind_color ON isuumo.chair(height, width, depth, kind, color);
-
-CREATE INDEX chair_width_depth ON isuumo.chair(width, depth);
-CREATE INDEX chair_width_depth_kind ON isuumo.chair(width, depth, kind);
-CREATE INDEX chair_width_depth_kind_color ON isuumo.chair(width, depth, kind, color);
-
-CREATE INDEX chair_depth_kind ON isuumo.chair(depth, kind);
-CREATE INDEX chair_depth_kind_color ON isuumo.chair(depth, kind, color);
