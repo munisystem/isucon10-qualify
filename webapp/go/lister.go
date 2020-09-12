@@ -45,7 +45,7 @@ func Ensure(table string, condition string, param interface{}) (string, error) {
 	return key, nil
 }
 
-func Get(table string, keys []string) ([]int64, error) {
+func Get(table string, keys []string) ([]string, error) {
 	conn := redigoPool.Get()
 	defer conn.Close()
 
@@ -67,7 +67,7 @@ func Get(table string, keys []string) ([]int64, error) {
 		}
 	}
 
-	ids, err := redis.Int64s(conn.Do("SMEMBERS", key))
+	ids, err := redis.Strings(conn.Do("SMEMBERS", key))
 	if err != nil {
 		return nil, err
 	}

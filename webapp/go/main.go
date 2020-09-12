@@ -799,17 +799,30 @@ func searchEstates(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	searchQuery := "SELECT * FROM estate WHERE "
-	countQuery := "SELECT COUNT(*) FROM estate WHERE "
+	EstateTable := "estate"
+	keys := make([]string, len(conditions))
+	for i, condition := range conditions {
+		key, err := Ensure(EstateTable, condition, params[i])
+		if err != nil {
+			c.Logger().Errorf("failed to ensure: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		keys[i] = key
+	}
+
+	ids, err := Get(EstateTable, keys)
+	if err != nil {
+		c.Logger().Errorf("failed to get: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	searchQuery := fmt.Sprintf("SELECT * FROM estate WHERE id IN(%s)", strings.Join(ids, ", "))
 	searchCondition := strings.Join(conditions, " AND ")
 	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
 
 	var res EstateSearchResponse
-	err = db.Get(&res.Count, countQuery+searchCondition, params...)
-	if err != nil {
-		c.Logger().Errorf("searchEstates DB execution error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
+	res.Count = int64(len(ids))
 
 	estates := []Estate{}
 	params = append(params, perPage, page*perPage)
