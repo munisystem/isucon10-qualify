@@ -325,9 +325,25 @@ func initialize(c echo.Context) error {
 		c.Logger().Errorf("Failed to  invalidate estate : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	_, err = EnsureRanking("estate", "ORDER BY popularity DESC, id ASC")
+	if err != nil {
+		c.Logger().Errorf("Failed to ensure ranking estate : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	if err != nil {
+		c.Logger().Errorf("Failed to  invalidate estate : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
 	err = Invalidate("chair")
 	if err != nil {
 		c.Logger().Errorf("Failed to  invalidate chair : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	_, err = EnsureRanking("chair", "ORDER BY popularity DESC, id ASC")
+	if err != nil {
+		c.Logger().Errorf("Failed to ensure ranking chair : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -837,7 +853,14 @@ func searchEstates(c echo.Context) error {
 		keys[i] = key
 	}
 
-	ids, err := Get(EstateTable, keys)
+	key, err := EnsureRanking("estate", "ORDER BY popularity DESC, id ASC")
+	if err != nil {
+		c.Logger().Errorf("failed to ensure: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	keys = append(keys, key)
+
+	ids, err := Get(EstateTable, keys, perPage, page)
 	if err != nil {
 		c.Logger().Errorf("failed to get: %v", err)
 		return c.NoContent(http.StatusInternalServerError)

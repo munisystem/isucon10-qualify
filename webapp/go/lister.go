@@ -45,7 +45,43 @@ func Ensure(table string, condition string, param interface{}) (string, error) {
 	return key, nil
 }
 
-func Get(table string, keys []string) ([]string, error) {
+func EnsureRanking(table string, order string) (string, error) {
+	conn := redigoPool.Get()
+	defer conn.Close()
+
+	key := redisKey(table, order, nil)
+	exist, err := redis.Bool(conn.Do("EXISTS", key))
+	if err != nil {
+		return "", err
+	}
+
+	if exist {
+		return key, nil
+	}
+
+	searchQuery := fmt.Sprintf("SELECT id FROM %s %s", table, order)
+	ids := []int64{}
+	err = db.Select(&ids, searchQuery)
+	if err != nil {
+		return "", err
+	}
+
+	conn.Send("MULTI")
+	for i, id := range ids {
+		err := conn.Send("ZADD", key, i, id)
+		if err != nil {
+			return "", err
+		}
+	}
+	_, err = conn.Do("EXEC")
+	if err != nil {
+		return "", err
+	}
+
+	return key, nil
+}
+
+func Get(table string, keys []string, perPage int, page int) ([]string, error) {
 	conn := redigoPool.Get()
 	defer conn.Close()
 
@@ -60,13 +96,13 @@ func Get(table string, keys []string) ([]string, error) {
 		for _, k := range keys {
 			args = append(args, k)
 		}
-		_, err := conn.Do("SINTERSTORE", args...)
+		_, err := conn.Do("ZINTERSTORE", args...)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	ids, err := redis.Strings(conn.Do("SMEMBERS", key))
+	ids, err := redis.Strings(conn.Do("ZRANGE", key, page*perPage, (page+1)*perPage-1))
 	if err != nil {
 		return nil, err
 	}
@@ -90,5 +126,6 @@ func Invalidate(table string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
