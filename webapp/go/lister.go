@@ -82,6 +82,3 @@ func redisKey(table string, condition string, param interface{}) string {
 func intersectionKey(table string, keys []string) string {
 	return fmt.Sprintf("%s:%s:intersection:%s", InvalidatablePrefix, table, strings.Join(keys, ":"))
 }
-
-func Invalidate(table string) error {
-}
