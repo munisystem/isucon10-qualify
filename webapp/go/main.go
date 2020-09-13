@@ -554,24 +554,44 @@ func searchChairs(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	// TODO: JOIN 等による最適化の余地あり
-	searchQuery := "SELECT * FROM chair WHERE "
-	countQuery := "SELECT COUNT(*) FROM chair WHERE "
-	searchCondition := strings.Join(conditions, " AND ")
-	// MEMO: popurarity の順番で表示
-	// TODO: popurarity に index がはられているか、また有効になっているかは確認する
-	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
+	ChairTable := "chair"
+	keys := make([]string, len(conditions))
+	for i, condition := range conditions {
+		key, err := Ensure(ChairTable, condition, params[i])
+		if err != nil {
+			c.Logger().Errorf("failed to ensure chair: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 
-	var res ChairSearchResponse
-	err = db.Get(&res.Count, countQuery+searchCondition, params...)
+		keys[i] = key
+	}
+
+	key, err := EnsureRanking("chair", "ORDER BY popularity DESC, id ASC")
 	if err != nil {
-		c.Logger().Errorf("searchChairs DB execution error : %v", err)
+		c.Logger().Errorf("failed to ensure: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	keys = append(keys, key)
+
+	ids, count, err := Get(ChairTable, keys, perPage, page)
+	if err != nil {
+		c.Logger().Errorf("failed to get: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	if len(ids) == 0 {
+		return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
+	}
+	searchQuery := fmt.Sprintf("SELECT * FROM chair WHERE id IN(%s)", strings.Join(ids, ", "))
+	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
+
+	var res ChairSearchResponse
+	res.Count = count
+
 	chairs := []Chair{}
 	params = append(params, perPage, page*perPage)
-	err = db.Select(&chairs, searchQuery+searchCondition+limitOffset, params...)
+	err = db.Select(&chairs, searchQuery+limitOffset, perPage, page*perPage)
+	c.Logger().Infof("Chair Query : %v", searchQuery+limitOffset)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, ChairSearchResponse{Count: 0, Chairs: []Chair{}})
